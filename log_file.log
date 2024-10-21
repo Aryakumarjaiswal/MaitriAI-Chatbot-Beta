@@ -1,0 +1,37 @@
+2024-10-21 18:20:42,369 - INFO - API key successfully loaded from environment.
+2024-10-21 18:20:42,655 - INFO - Gemini model initialized successfully.
+2024-10-21 18:20:43,889 - INFO - PDF loaded and split successfully.
+2024-10-21 18:20:43,906 - INFO - Loaded existing document chunks.
+2024-10-21 18:20:45,256 - INFO - Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+2024-10-21 18:20:48,976 - INFO - Retriever initialized successfully.
+2024-10-21 18:20:48,982 - INFO - History aware retriever created successfully. 
+2024-10-21 18:20:48,985 - INFO - Retrieval Chain combined with question-answer chain
+2024-10-21 18:20:48,985 - INFO - Previous conversations saved
+2024-10-21 18:20:52,207 - INFO - GIF from st.lottie loaded from URL
+2024-10-21 18:21:10,267 - INFO - API key successfully loaded from environment.
+2024-10-21 18:21:10,276 - INFO - Gemini model initialized successfully.
+2024-10-21 18:21:10,853 - INFO - PDF loaded and split successfully.
+2024-10-21 18:21:10,855 - INFO - Loaded existing document chunks.
+2024-10-21 18:21:13,389 - INFO - Retriever initialized successfully.
+2024-10-21 18:21:13,390 - INFO - History aware retriever created successfully. 
+2024-10-21 18:21:13,391 - INFO - Retrieval Chain combined with question-answer chain
+2024-10-21 18:21:13,391 - INFO - Previous conversations saved
+2024-10-21 18:21:16,211 - INFO - GIF from st.lottie loaded from URL
+2024-10-21 18:21:44,259 - INFO - API key successfully loaded from environment.
+2024-10-21 18:21:44,271 - INFO - Gemini model initialized successfully.
+2024-10-21 18:21:45,033 - INFO - PDF loaded and split successfully.
+2024-10-21 18:21:45,036 - INFO - Loaded existing document chunks.
+2024-10-21 18:21:47,661 - INFO - Retriever initialized successfully.
+2024-10-21 18:21:47,662 - INFO - History aware retriever created successfully. 
+2024-10-21 18:21:47,662 - INFO - Retrieval Chain combined with question-answer chain
+2024-10-21 18:21:47,663 - INFO - Previous conversations saved
+2024-10-21 18:21:50,815 - INFO - GIF from st.lottie loaded from URL
+2024-10-21 18:22:03,291 - INFO - API key successfully loaded from environment.
+2024-10-21 18:22:03,297 - INFO - Gemini model initialized successfully.
+2024-10-21 18:22:03,835 - INFO - PDF loaded and split successfully.
+2024-10-21 18:22:03,835 - INFO - Loaded existing document chunks.
+2024-10-21 18:22:06,444 - INFO - Retriever initialized successfully.
+2024-10-21 18:22:06,445 - INFO - History aware retriever created successfully. 
+2024-10-21 18:22:06,446 - INFO - Retrieval Chain combined with question-answer chain
+2024-10-21 18:22:06,446 - INFO - Previous conversations saved
+2024-10-21 18:22:09,477 - INFO - GIF from st.lottie loaded from URL
