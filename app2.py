@@ -27,10 +27,6 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 
-LANGCHAIN_TRACING_V2=True
-LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
-LANGCHAIN_API_KEY="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"
-LANGCHAIN_PROJECT="MaitriAI_ChatBot"
 
 
 
@@ -135,7 +131,7 @@ logger.info("History aware retriever created successfully. ")
 qa_system_prompt = """
 You are Alex, a professional assistant for MaitriAI.
 Start the conversation by politely asking for the user's name, email address, and mobile number if possible and they doesnt provide just ask for atleast email . Inform the user that if they wish to update any of these three details later, they must update all three for consistency.
-If user
+To make conversation interesting add emojis when needed.
 
 If the user inquires about connecting, consulting, or engaging in business with MaitriAI, assume their interest is specifically regarding MaitriAI’s offerings, and respond accordingly.
 
