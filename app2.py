@@ -1,4 +1,3 @@
-
 import bs4
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -21,6 +20,20 @@ import requests
 from streamlit_lottie import st_lottie
 import pickle
 import logging
+import mysql.connector
+from mysql.connector import Error
+from typing import Optional
+from langchain_core.pydantic_v1 import BaseModel, Field
+
+
+
+LANGCHAIN_TRACING_V2=True
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY="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"
+LANGCHAIN_PROJECT="MaitriAI_ChatBot"
+
+
+
 
 st.set_page_config(page_title="MaitriAI Chatbot", page_icon="image.png", layout="wide")
 # Set up logger configuration
@@ -37,7 +50,7 @@ logger=logging.getLogger()
 #         logger.handlers.clear()
 
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_API_KEY")
+API_KEY = os.environ["GOOGLE_API_KEY"]
 
 if API_KEY:
     logger.info("API key successfully loaded from environment.")
@@ -114,19 +127,32 @@ history_aware_retriever = create_history_aware_retriever(llm, retriever, context
 
 logger.info("History aware retriever created successfully. ")
 
+
+
+#
+
+
 qa_system_prompt = """
-You are Alex, a MaitriAI assistant.
-Start your conversation with asking user their name,email address and mobile number.
-If user ask about dealing ,connecting or consulting related stuff.please assume they wanna do particular with respect to maitriAI.
-MaitriAI is a company specialized in developing AI-driven applications that leverage the power of artificial intelligence to transform businesses. Our AI-driven application development services enable organizations to harness the potential of cutting-edge technologies and unlock new levels of efficiency, automation, and innovation.
-Our main products are Credisence,AI Avatar,Customer Assistant Chatbot,LMS,AI Interviewer,OCR,Object detection based products amd much more.
-Using advanced machine learning algorithms, natural language processing, computer vision, and data analytics, we create intelligent applications that can understand, learn, and adapt to complex business environments.
-Provide concise answers using the following context. Limit responses to 2-3 sentences unless more detail is requested.
-If the question isn't related to MaitriAI or its, respond with: "Sorry for the inconvenience, but I'm designed to answer your queries related to MaitriAI. What else can I assist you with?" also donot output any piece of text in bold font style.
-{context} last but not the least if customer tends to be very aggressive or uses abusive or vulgur language donot indulge and politly ask to head to MaitriAI's official website. 
+You are Alex, a professional assistant for MaitriAI.
+Start the conversation by politely asking for the user's name, email address, and mobile number if possible and they doesnt provide just ask for atleast email . Inform the user that if they wish to update any of these three details later, they must update all three for consistency.
+If user
 
+If the user inquires about connecting, consulting, or engaging in business with MaitriAI, assume their interest is specifically regarding MaitriAI’s offerings, and respond accordingly.
 
-Finally you are smart assistant if something occurs that you are not capable to handle. you simply tell user to query at Contact section of company's website.
+MaitriAI is a company specializing in AI-driven applications that enhance business efficiency and innovation through artificial intelligence. Our AI services include products like Credisence, AI Avatar, Customer Assistant Chatbot, LMS, AI Interviewer, OCR, Object Detection-based products, and more.
+
+Using machine learning, natural language processing, computer vision, and data analytics, MaitriAI develops applications that can adapt to complex business environments. Provide concise answers with 2-3 sentences unless the user requests further detail.
+
+**Guidelines for Responses:**
+- **Clarifying Intent:** If a user’s question seems unclear or lacks detail, kindly ask them for more specifics. For instance: "Could you provide a bit more detail so I can assist you accurately?"
+- **Professional Empathy:** If a user appears frustrated or expresses dissatisfaction, respond professionally with empathy, e.g., "I understand your concern. I'm here to help and ensure you get the assistance you need. Could you clarify how I can assist further?"
+- **Ambiguity and Consistency:** If a question is too broad or general, provide a brief overview and offer to elaborate on specific areas if the user is interested.
+- **Non-MaitriAI Queries:** If the question is unrelated to MaitriAI, respond with: "I'm here to assist with queries related to MaitriAI. Could I help with something specific about our services?"
+
+Lastly, if the user uses inappropriate language or becomes aggressive, politely suggest they visit MaitriAI’s official website or mail at contact@maitriai.com. for further assistance.
+
+If a query is outside your capabilities, suggest they visit the "Contact" section on MaitriAI’s website.
+{context}
 """
 qa_prompt = ChatPromptTemplate.from_messages(
     [
@@ -135,6 +161,14 @@ qa_prompt = ChatPromptTemplate.from_messages(
         ("human", "{input}"),
     ]
 )
+
+
+
+
+
+
+
+
 question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 try:
@@ -162,28 +196,73 @@ conversational_rag_chain = RunnableWithMessageHistory(
     output_messages_key="answer",
 )
 
-# Information extraction functions
-def extract_info(text):
-    name = extract_name(text)
-    email = extract_email(text)
-    mobile = extract_mobile(text)
-    return name, email, mobile
+
+from typing import Optional,Dict
+
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 
-def extract_name(text):
-    name_pattern = r'\b[A-Z][a-zA-Z]+\b'
-    names = re.findall(name_pattern, text)
-    return " ".join(names[:2]) if names else None
+def create_connection():
+    try:
+        logger.info('Entered inside create_connection()')
+        connection = mysql.connector.connect(
+            host="localhost",  # or your host
+            user="root",       # your MySQL username
+            password="password_of_your_MysqlWorkbench",  # your MySQL password
+            database="maitriai_db(name should match with db) "  # your database
+        )
+        if connection.is_connected():
+            logger.info("Database Connection Created")
+            return connection
+    except Error as e:
+        logger.error(f"Error connecting to MySQL: {e}")
+        return None
 
-def extract_mobile(text):
-    mobile_pattern =  r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
-    mobile = re.search(mobile_pattern, text)
-    return mobile.group() if mobile else None
+def check_user_exists(email):
+    # Right now im filterning wrt email
+    connection = create_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "SELECT COUNT(*) FROM users WHERE email = %s"
+            cursor.execute(query, (email,))
+            result = cursor.fetchone()
+            return result[0] > 0  # Return True if the user exists
+        except Error as e:
+            logger.error(f"Error checking user existence: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
 
-def extract_email(text):
-    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-    email = re.search(email_pattern, text)
-    return email.group() if email else None
+
+
+
+def insert_user_info(name, email, mobile):
+    # Check if the user already exists before inserting
+   
+    if not check_user_exists(email):  # Create this function
+        connection = create_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+                query = """INSERT INTO users (name, email, mobile) VALUES (%s, %s, %s)"""
+                cursor.execute(query, (name, email, mobile))
+                connection.commit()
+                logger.info(f"User info inserted successfully: {name}, {email}, {mobile}")
+            except Error as e:
+                logger.error(f"Error inserting user info: {e}")
+            finally:
+                cursor.close()
+                connection.close()
+    else:
+        logger.info("User already exists; skipping insert.")
+
+
+
+
 
 
 
@@ -222,10 +301,7 @@ def speech_to_text():
             )["answer"]
             st.write(response)
             text_2_speech_converter(response)
-             # Extract information from user input
-            name, email, mobile = extract_info(text)
-            if name and email and mobile:
-                print(f"Extracted Information: Name - {name}, Email - {email}, Mobile - {mobile}")
+
             return 1
         except sr.UnknownValueError:
             st.write("Sorry, I did not understand that.")
@@ -243,6 +319,58 @@ def load_lottie_url(url: str):
         logger.warning(f"Failed to load Lottie animation from URL: {url}")
         return None
     return r.json()
+
+
+def details_extraction(text):
+    """Extract contact details from text."""
+    logger.info("Entered to details_extraction function")
+    class Person(BaseModel):
+        """Extract contact details from text."""
+        
+        name: str = Field(
+            default=None, 
+            description="Extract full name of the person from text,IF EXISTS",
+            
+            
+        )
+        mobile: str = Field(
+            default="", 
+            description="Extract mobile/phone number from text if present,IF EXISTS",
+            
+            
+        )
+        email_id: str = Field(
+            default="", 
+            description="Extract email address from text if present,IF EXISTS",
+           
+        )
+    logger.info("CROSSED THE SCHEMA FUNCTION")
+    
+    # Improved prompt for better extraction
+    info_extract_prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """You are an expert information extraction algorithm.
+            Your task is to extract name, mobile number, and email address of person if present from the input text.
+            
+            If any information is not present, return null for that field."""
+        ),
+        ("human", "{text}"),
+    ])
+    llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    temperature=0,
+
+    
+    )
+    
+    runnable = info_extract_prompt | llm.with_structured_output(schema=Person)
+    
+    
+    result = runnable.invoke({"text": text})
+    logger.info(f"Extraction result: {result}")
+    print(result.name, result.mobile, result.email_id)
+    return result.name, result.mobile, result.email_id
 
 
 # Main app function
@@ -269,6 +397,12 @@ def main():
         
         if "messages" not in st.session_state:
             st.session_state.messages = []
+        if "user_info" not in st.session_state:
+            st.session_state.user_info = {
+                "name": None,
+                "mobile": None,
+                "email": None
+            }
 
         # Display all previous messages in the chat history
         for message in st.session_state.messages:
@@ -280,11 +414,15 @@ def main():
                     st.markdown(message["content"])
 
         # Input for current prompt
-        prompt = st.chat_input("What would you like to know?")
+        prompt = st.chat_input(placeholder="Ask Anything")
 
         if prompt:
             # Save the user's question
+            
             st.session_state.messages.append({"role": "user", "content": prompt})
+
+
+            
             with st.chat_message("user"):
                 st.markdown(prompt)
 
@@ -293,16 +431,36 @@ def main():
                 message_placeholder = st.empty()
                 response = conversational_rag_chain.invoke(
                     {"input": prompt},
-                    config={"configurable": {"session_id": "MaitriAI_Test-II"}}
+                    config={"configurable": {"session_id": "MaitriAI_Test-III"},
+                           
+                            
+                            }
                 )["answer"]
+            
+
                 message_placeholder.markdown(response)
-            name, email, mobile = extract_info(prompt)
-            if name and email and mobile:
-                print(f"Extracted Information: Name - {name}, Email - {email}, Mobile - {mobile}")
+            
+
+            try:
+                name, mobile, email_id = details_extraction(prompt)
+                if name!=None:
+                    #st.write(f"Name: {name}")
+                    logger.info('Name Extracted Successfully')
+                if mobile:
+                    #st.write(f"Mobile:{mobile}")
+                    logger.info('Mobile Number Extracted Successfully')
+                if email_id:
+                    #st.write(f"Email: {email_id}")
+                    logger.info('Name Extracted Successfully')
 
                 
-            # Save the assistant's response
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                insert_user_info(name,email_id,mobile)
+                
+            except Exception as e:
+                logger.error(f"Error extracting details: {str(e)}")
+                st.error("Could not extract contact information")
+
+
 
 
     with col2:
@@ -318,3 +476,4 @@ def main():
                 pass
 
 main()
+
