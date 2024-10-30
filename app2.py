@@ -31,6 +31,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 
+
 st.set_page_config(page_title="MaitriAI Chatbot", page_icon="image.png", layout="wide")
 # Set up logger configuration
 logging.basicConfig(
@@ -88,7 +89,7 @@ CHUNKS_FILE = "./document_chunks.pkl"
 if os.path.exists(CHUNKS_FILE):
     with open(CHUNKS_FILE, "rb") as f:
         splits = pickle.load(f)
-    logger.info("Loaded existing document chunks.")
+        logger.info("Loaded existing document chunks.")
 else:
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(docs)
@@ -100,8 +101,8 @@ else:
 # Initialize embeddings and vector store
 try:
     gemini_embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vectorstore = Chroma.from_documents(documents=splits, embedding=gemini_embeddings)
-    retriever = vectorstore.as_retriever()
+    vectorstore = Chroma.from_documents(documents=splits, embedding=gemini_embeddings,persist_directory="./chroma_langchain_db")
+    retriever = vectorstore.as_retriever( search_type="similarity",search_kwargs={'k': 6})
     logger.info("Retriever initialized successfully.")
 except ValueError as e:
     logger.error(f"Error initializing retriever: {e}")
@@ -131,7 +132,7 @@ logger.info("History aware retriever created successfully. ")
 qa_system_prompt = """
 You are Alex, a professional assistant for MaitriAI.
 Start the conversation by politely asking for the user's name, email address, and mobile number if possible and they doesnt provide just ask for atleast email . Inform the user that if they wish to update any of these three details later, they must update all three for consistency.
-To make conversation interesting add emojis when needed.
+If user
 
 If the user inquires about connecting, consulting, or engaging in business with MaitriAI, assume their interest is specifically regarding MaitriAI’s offerings, and respond accordingly.
 
@@ -205,8 +206,8 @@ def create_connection():
         connection = mysql.connector.connect(
             host="localhost",  # or your host
             user="root",       # your MySQL username
-            password="password_of_your_MysqlWorkbench",  # your MySQL password
-            database="maitriai_db(name should match with db) "  # your database
+            password="",  # your MySQL password
+            database=" "  # your database
         )
         if connection.is_connected():
             logger.info("Database Connection Created")
@@ -369,8 +370,100 @@ def details_extraction(text):
     return result.name, result.mobile, result.email_id
 
 
+
+import os
+import json
+from datetime import datetime
+
+def save_conversation_to_file(email: str, conversation: list) -> str:
+    """
+    Save conversation to a JSON file and return the file path.
+    """
+    # Create a conversations directory if it doesn't exist
+    os.makedirs('conversations', exist_ok=True)
+    
+    # Create a timestamp-based filename
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"conversations/{email}_{timestamp}.json"
+    
+    # Format the conversation data
+    conversation_data = {
+        'email': email,
+        'timestamp': timestamp,
+        'messages': conversation
+    }
+    
+    # Save to file
+    with open(filename, 'w') as f:
+        json.dump(conversation_data, f, indent=2)
+    
+    return filename
+# def update_database_schema():
+#     """
+#     Update database schema to include conversation_file column in MySQL.
+#     """
+#     connection = create_connection()  # Get database connection
+#     if connection:
+#         try:
+#             cursor = connection.cursor()
+            
+#             # Step 1: Check if column exists
+#             check_column_query = """
+#             SELECT COUNT(*)
+#             FROM information_schema.columns 
+#             WHERE table_schema = 'maitriai_db'
+#             AND table_name = 'users' 
+#             AND column_name = 'conversation_file';
+#             """
+#             cursor.execute(check_column_query)  # Execute the check
+#             column_exists = cursor.fetchone()[0]  # Get the result
+            
+#             # Step 2: Only add column if it doesn't exist
+#             if column_exists == 0:
+#                 alter_query = """
+#                 ALTER TABLE users 
+#                 ADD COLUMN conversation_file VARCHAR(255)
+#                 """
+#                 cursor.execute(alter_query)  # Execute the alter
+#                 connection.commit()  # Commit the changes
+#                 logger.info("conversation_file column added successfully")
+#             else:
+#                 logger.info("conversation_file column already exists")
+                
+#         except Error as e:
+#             logger.error(f"Error updating database schema: {e}")
+#         finally:
+#             cursor.close()
+#             connection.close()
+
+
+
+def update_user_conversation(email: str, conversation_file: str):
+    """
+    Update the conversation file path in the database for a user.
+    """
+    connection = create_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = """
+            UPDATE users 
+            SET conversation_file = %s 
+            WHERE email = %s
+            """
+            cursor.execute(query, (conversation_file, email))
+            connection.commit()
+            logger.info(f"Updated conversation file path for user: {email}")
+        except Error as e:
+            logger.error(f"Error updating conversation file path: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+    
 # Main app function
 def main():
+    #update_database_schema()
     st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -407,7 +500,7 @@ def main():
                     st.markdown(message["content"])
             elif message["role"] == "assistant":
                 with st.chat_message("assistant"):
-                    st.markdown(message["content"])
+                    st.markdown(message["Response"])
 
         # Input for current prompt
         prompt = st.chat_input(placeholder="Ask Anything")
@@ -435,10 +528,21 @@ def main():
             
 
                 message_placeholder.markdown(response)
-            
+
+                st.session_state.messages.append({"role": "assistant", "Response": response})
+                
 
             try:
                 name, mobile, email_id = details_extraction(prompt)
+                conversation_file = save_conversation_to_file(email_id, st.session_state.messages)
+                # Update database with file path
+                
+                update_user_conversation(email_id, conversation_file)
+                if email_id:  # Only save if we have an email
+                    conversation_file = save_conversation_to_file(email_id, st.session_state.messages)
+                    update_user_conversation(email_id, conversation_file)
+                    logger.info(f'Conversation saved for user with email: {email_id}')
+                
                 if name!=None:
                     #st.write(f"Name: {name}")
                     logger.info('Name Extracted Successfully')
@@ -451,6 +555,12 @@ def main():
 
                 
                 insert_user_info(name,email_id,mobile)
+
+
+
+
+                # for ele in st.session_state.messages:
+                #     st.write(ele)
                 
             except Exception as e:
                 logger.error(f"Error extracting details: {str(e)}")
