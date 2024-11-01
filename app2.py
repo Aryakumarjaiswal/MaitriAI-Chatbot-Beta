@@ -27,7 +27,10 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 
-
+LANGCHAIN_TRACING_V2=True
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY="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"
+LANGCHAIN_PROJECT="MaitriAI_ChatBot"
 
 
 
@@ -206,8 +209,8 @@ def create_connection():
         connection = mysql.connector.connect(
             host="localhost",  # or your host
             user="root",       # your MySQL username
-            password="",  # your MySQL password
-            database=" "  # your database
+            password="#1Krishna",  # your MySQL password
+            database="maitriai_db "  # your database
         )
         if connection.is_connected():
             logger.info("Database Connection Created")
@@ -398,45 +401,28 @@ def save_conversation_to_file(email: str, conversation: list) -> str:
         json.dump(conversation_data, f, indent=2)
     
     return filename
-# def update_database_schema():
-#     """
-#     Update database schema to include conversation_file column in MySQL.
-#     """
-#     connection = create_connection()  # Get database connection
-#     if connection:
-#         try:
-#             cursor = connection.cursor()
-            
-#             # Step 1: Check if column exists
-#             check_column_query = """
-#             SELECT COUNT(*)
-#             FROM information_schema.columns 
-#             WHERE table_schema = 'maitriai_db'
-#             AND table_name = 'users' 
-#             AND column_name = 'conversation_file';
-#             """
-#             cursor.execute(check_column_query)  # Execute the check
-#             column_exists = cursor.fetchone()[0]  # Get the result
-            
-#             # Step 2: Only add column if it doesn't exist
-#             if column_exists == 0:
-#                 alter_query = """
-#                 ALTER TABLE users 
-#                 ADD COLUMN conversation_file VARCHAR(255)
-#                 """
-#                 cursor.execute(alter_query)  # Execute the alter
-#                 connection.commit()  # Commit the changes
-#                 logger.info("conversation_file column added successfully")
-#             else:
-#                 logger.info("conversation_file column already exists")
-                
-#         except Error as e:
-#             logger.error(f"Error updating database schema: {e}")
-#         finally:
-#             cursor.close()
-#             connection.close()
 
-
+def update_database_schema():
+    """
+    Update database schema to include conversation_file column.
+    """
+    connection = create_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            # Add conversation_file column if it doesn't exist
+            alter_query = """
+            ALTER TABLE users 
+            ADD COLUMN IF NOT EXISTS conversation_file VARCHAR(255)
+            """
+            cursor.execute(alter_query)
+            connection.commit()
+            logger.info("Database schema updated successfully")
+        except Error as e:
+            logger.error(f"Error updating database schema: {e}")
+        finally:
+            cursor.close()
+            connection.close()
 
 def update_user_conversation(email: str, conversation_file: str):
     """
@@ -460,10 +446,9 @@ def update_user_conversation(email: str, conversation_file: str):
             cursor.close()
             connection.close()
 
-    
+
 # Main app function
 def main():
-    #update_database_schema()
     st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -538,16 +523,12 @@ def main():
                 # Update database with file path
                 
                 update_user_conversation(email_id, conversation_file)
-                if email_id:  # Only save if we have an email
-                    conversation_file = save_conversation_to_file(email_id, st.session_state.messages)
-                    update_user_conversation(email_id, conversation_file)
-                    logger.info(f'Conversation saved for user with email: {email_id}')
                 
                 if name!=None:
-                    #st.write(f"Name: {name}")
+                   
                     logger.info('Name Extracted Successfully')
                 if mobile:
-                    #st.write(f"Mobile:{mobile}")
+                    
                     logger.info('Mobile Number Extracted Successfully')
                 if email_id:
                     #st.write(f"Email: {email_id}")
@@ -555,10 +536,6 @@ def main():
 
                 
                 insert_user_info(name,email_id,mobile)
-
-
-
-
                 # for ele in st.session_state.messages:
                 #     st.write(ele)
                 
